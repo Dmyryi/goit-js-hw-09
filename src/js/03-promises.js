@@ -1,10 +1,9 @@
+import { Notify } from 'notiflix/build/notiflix-notify-aio';
 
-const form = document.querySelector(".form");
-const delayInput = form.querySelector("input[name='delay']");
-const stepInput = form.querySelector("input[name='step']");
-const amountInput = form.querySelector("input[name='amount']");
-const startButton = form.querySelector("button[type='submit']");
-
+const formEl = document.querySelector('.form');
+let delayInp = null;
+let stepInp = null;
+let amountInp = null;
 
 function createPromise(position, delay) {
   return new Promise((resolve, reject) => {
@@ -19,33 +18,30 @@ function createPromise(position, delay) {
   });
 }
 
-
-
-form.addEventListener("submit", async (e) => {
+const submitHandler = e => {
   e.preventDefault();
+  if (!e.target.tagName === 'BUTTON') return;
 
-  let currentDelay = Number(delayInput.value);
-  const step = Number(stepInput.value);
-  const amount = Number(amountInput.value);
+  const {
+    elements: { delay, step, amount },
+  } = e.currentTarget;
 
+  delayInp = Number(delay.value);
+  stepInp = Number(step.value);
+  amountInp = Number(amount.value);
 
+  for (let i = 1; i <= amountInp; i++) {
+    createPromise(i, delayInp)
+      .then(({ position, delay }) => {
+        Notify.success(`✅ Fulfilled promise ${position} in ${delay}ms`);
+      })
+      .catch(({ position, delay }) => {
+        Notify.failure(`❌ Rejected promise ${position} in ${delay}ms`);
+      });
 
-  for (let position = 1; position <= amount; position++) {
-    try {
-  
-      const result = await createPromise(position, currentDelay);
-
-     
-      console.log(`✅ Fulfilled promise ${result.position} in ${result.delay}ms`);
-    } catch (error) {
-    
-      console.log(`❌ Rejected promise ${error.position} in ${error.delay}ms`);
-    }
-
-    currentDelay += step;
+    delayInp += stepInp;
   }
-});
 
-form.addEventListener("input", () => {
-  startButton.disabled = !delayInput.value || !stepInput.value || !amountInput.value;
-});
+  e.currentTarget.reset();
+};
+formEl.addEventListener('submit', submitHandler);

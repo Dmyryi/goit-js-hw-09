@@ -1,6 +1,15 @@
-import flatpickr from "flatpickr";
-import "flatpickr/dist/flatpickr.min.css";
+import flatpickr from 'flatpickr';
+import 'flatpickr/dist/flatpickr.min.css';
+import { Notify } from 'notiflix/build/notiflix-notify-aio';
 
+const startBtn = document.querySelector('[data-start]');
+const daysRef = document.querySelector('[data-days]');
+const hoursRef = document.querySelector('[data-hours]');
+const minutesRef = document.querySelector('[data-minutes]');
+const secondsRef = document.querySelector('[data-seconds]');
+let timerId = null;
+
+startBtn.setAttribute('disabled', true);
 
 function convertMs(ms) {
   const second = 1000;
@@ -16,18 +25,7 @@ function convertMs(ms) {
   return { days, hours, minutes, seconds };
 }
 
-function addLeadingZero(value) {
-  return value.toString().padStart(2, '0');
-}
-
-const datetimePicker = document.getElementById('datetime-picker');
-const startButton = document.querySelector('[data-start]');
-const daysValue = document.querySelector('[data-days]');
-const hoursValue = document.querySelector('[data-hours]');
-const minutesValue = document.querySelector('[data-minutes]');
-const secondsValue = document.querySelector('[data-seconds]');
-
-let countdownIntervalId;
+const addLeadingZero = value => String(value).padStart(2, 0);
 
 const options = {
   enableTime: true,
@@ -35,56 +33,46 @@ const options = {
   defaultDate: new Date(),
   minuteIncrement: 1,
   onClose(selectedDates) {
-    console.log(selectedDates[0]);
+    if (selectedDates[0] < new Date()) {
+      Notify.failure('Please choose a date in the future');
+      return;
+    }
+    startBtn.removeAttribute('disabled');
+
+    const showTimer = () => {
+      const now = new Date();
+      localStorage.setItem('selectedData', selectedDates[0]);
+      const selectData = new Date(localStorage.getItem('selectedData'));
+
+      if (!selectData) return;
+
+      const diff = selectData - now;
+      const { days, hours, minutes, seconds } = convertMs(diff);
+      daysRef.textContent = days;
+      hoursRef.textContent = addLeadingZero(hours);
+      minutesRef.textContent = addLeadingZero(minutes);
+      secondsRef.textContent = addLeadingZero(seconds);
+
+      if (
+        daysRef.textContent === '0' &&
+        hoursRef.textContent === '00' &&
+        minutesRef.textContent === '00' &&
+        secondsRef.textContent === '00'
+      ) {
+        clearInterval(timerId);
+      }
+    };
+
+    const onClick = () => {
+      if (timerId) {
+        clearInterval(timerId);
+      }
+      showTimer();
+      timerId = setInterval(showTimer, 1000);
+    };
+
+    startBtn.addEventListener('click', onClick);
   },
 };
 
-flatpickr(datetimePicker, {
-  enableTime: true,
-  time_24hr: true,
-  defaultDate: new Date(),
-  minuteIncrement: 1,
-  onClose(selectedDates) {
-    const selectedDate = new Date(selectedDates[0]);
-    const currentDate = new Date();
-    
-    if (selectedDate <= currentDate) {
-      alert('Please choose a date in the future');
-      startButton.disabled = true;
-    } else {
-      startButton.disabled = false;
-    }
-  },
-});
-
-startButton.addEventListener('click', () => {
-  const selectedDate = new Date(datetimePicker.value);
-  const currentDate = new Date();
-  
-  if (selectedDate <= currentDate) {
-
-    alert('Please choose a date in the future');
-    return;
-  }
-
-  startButton.disabled = true;
-  
-  countdownIntervalId = setInterval(() => {
-    const timeRemaining = selectedDate - new Date();
-    if (timeRemaining <= 0) {
-      clearInterval(countdownIntervalId);
-      daysValue.textContent = '00';
-      hoursValue.textContent = '00';
-      minutesValue.textContent = '00';
-      secondsValue.textContent = '00';
-      
-      return;
-    }
-
-    const { days, hours, minutes, seconds } = convertMs(timeRemaining);
-    daysValue.textContent = addLeadingZero(days);
-    hoursValue.textContent = addLeadingZero(hours);
-    minutesValue.textContent = addLeadingZero(minutes);
-    secondsValue.textContent = addLeadingZero(seconds);
-  }, 1000);
-});
+flatpickr('#datetime-picker', { ...options });
